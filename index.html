@@ -92,6 +92,7 @@ img{max-width:100%;display:block}
 
 .rv{transition:opacity .8s cubic-bezier(.2,.7,.3,1),transform .8s cubic-bezier(.2,.7,.3,1)}
 .js-rv .rv:not(.in){opacity:0;transform:translateY(26px)}
+.sin-anim .rv{transition:none!important;opacity:1!important;transform:none!important}
 @media (prefers-reduced-motion:reduce){
   .js-rv .rv:not(.in){opacity:1;transform:none}
   .rv{transition:none}
@@ -1028,7 +1029,11 @@ function pintarPlanes(){
   // Último seguro: si nada llegó a revelarse, se descarta la animación y se
   // muestra todo. El contenido nunca depende de que el efecto funcione.
   setTimeout(function(){
-    if (pendientes.length === els.length) document.documentElement.classList.remove("js-rv");
+    if (pendientes.length === els.length){
+      // sin transición de por medio: se muestra de inmediato, pase lo que pase
+      document.documentElement.classList.add("sin-anim");
+      document.documentElement.classList.remove("js-rv");
+    }
   }, 2500);
 })();
 
