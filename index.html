@@ -999,49 +999,40 @@ function pintarPlanes(){
   var els = [].slice.call(document.querySelectorAll(".rv"));
   if (!els.length) return;
 
-  // Se mide la posición directamente en cada scroll. IntersectionObserver sería
-  // más elegante, pero hay entornos donde existe y nunca reporta intersección:
-  // ahí la página entera se quedaba invisible. Esto no puede fallar así.
-  var pendientes = els.slice(), pedido = false;
+  var pendientes = els.slice();
+  var raiz = document.documentElement;
 
-  function revisar(){
-    pedido = false;
-    var alto = window.innerHeight || document.documentElement.clientHeight || 0;
+  function alto(){ return window.innerHeight || raiz.clientHeight || 0; }
+  function aLaVista(e){
+    var r = e.getBoundingClientRect();
+    return r.top < alto() * 0.88 && r.bottom > 0;
+  }
+
+  // Comprobación por fotograma. Se detiene sola cuando ya no queda nada oculto.
+  function bucle(){
     for (var i = pendientes.length - 1; i >= 0; i--){
-      var r = pendientes[i].getBoundingClientRect();
-      if (r.top < alto * 0.88 && r.bottom > 0){
+      if (aLaVista(pendientes[i])){
         pendientes[i].classList.add("in");
         pendientes.splice(i, 1);
       }
     }
-    if (!pendientes.length){
-      window.removeEventListener("scroll", pedir);
-      window.removeEventListener("resize", pedir);
-    }
+    if (pendientes.length) requestAnimationFrame(bucle);
   }
-  function pedir(){ if (!pedido){ pedido = true; requestAnimationFrame(revisar); } }
 
-  document.documentElement.classList.add("js-rv");
-  window.addEventListener("scroll", pedir, { passive:true });
-  window.addEventListener("resize", pedir);
-  revisar();
+  raiz.classList.add("js-rv");
+  requestAnimationFrame(bucle);
 
-  // Repasos tempranos: las fuentes y las imágenes cambian la altura al cargar.
-  [400, 1200, 2400].forEach(function(t){ setTimeout(revisar, t); });
-
-  // Último seguro: sólo si algo que debería verse sigue oculto. El contenido
-  // nunca depende de que la animación funcione.
-  setTimeout(function(){
-    var alto = window.innerHeight || document.documentElement.clientHeight || 0;
-    var atascado = pendientes.some(function(e){
-      var r = e.getBoundingClientRect();
-      return r.top < alto && r.bottom > 0;
-    });
-    if (atascado){
-      document.documentElement.classList.add("sin-anim");
-      document.documentElement.classList.remove("js-rv");
+  // Seguro: si algo que debería verse sigue oculto, se descarta la animación.
+  // El contenido nunca depende de que el efecto llegue a funcionar.
+  var intentos = 0;
+  var vigilante = setInterval(function(){
+    if (!pendientes.length || ++intentos > 6) return clearInterval(vigilante);
+    if (pendientes.some(aLaVista)){
+      clearInterval(vigilante);
+      raiz.classList.add("sin-anim");
+      raiz.classList.remove("js-rv");
     }
-  }, 3000);
+  }, 900);
 })();
 
 /* ============ GLOBOS TERRÁQUEOS ============
@@ -1271,6 +1262,7 @@ function pintarPlanes(){
   /* ---------- bucle único ---------- */
   function paso(){
     for (var i = 0; i < globos.length; i++){
+      try {
       var g = globos[i], V = g.V, cfg = g.cfg;
       if (!g.W) g.resize();
       if (!g.W) continue;
@@ -1304,6 +1296,7 @@ function pintarPlanes(){
       ctx.beginPath(); ctx.arc(V.cx, V.cy, V.R, 0, 6.2832);
       ctx.strokeStyle = "rgba(140,180,255,.28)"; ctx.lineWidth = 1; ctx.stroke();
       cfg.pintar(ctx, V, g);
+      } catch (err) { /* un globo con problemas no detiene a los demás */ }
     }
     requestAnimationFrame(paso);
   }
