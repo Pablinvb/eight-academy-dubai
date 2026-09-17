@@ -90,9 +90,13 @@ img{max-width:100%;display:block}
 .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
-.rv{opacity:0;transform:translateY(26px);transition:opacity .8s cubic-bezier(.2,.7,.3,1),transform .8s cubic-bezier(.2,.7,.3,1)}
-.rv.in{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){ .rv{opacity:1;transform:none;transition:none} *{animation:none!important} }
+.rv{transition:opacity .8s cubic-bezier(.2,.7,.3,1),transform .8s cubic-bezier(.2,.7,.3,1)}
+.js-rv .rv:not(.in){opacity:0;transform:translateY(26px)}
+@media (prefers-reduced-motion:reduce){
+  .js-rv .rv:not(.in){opacity:1;transform:none}
+  .rv{transition:none}
+  *{animation:none!important}
+}
 
 /* ---------- PLANETARIO ---------- */
 .sky{position:relative;background:var(--void);color:var(--void-ink);padding:0 0 74px;overflow:hidden}
@@ -992,11 +996,27 @@ function pintarPlanes(){
 /* ============ REVELADO AL SCROLL ============ */
 (function reveal(){
   var els = [].slice.call(document.querySelectorAll(".rv"));
-  if (!("IntersectionObserver" in window)) { els.forEach(function(e){ e.classList.add("in"); }); return; }
+  if (!els.length || !("IntersectionObserver" in window)) return;   // sin soporte, todo visible
+
+  function mostrarTodo(){ els.forEach(function(e){ e.classList.add("in"); }); }
+
+  var respondio = false;
   var io = new IntersectionObserver(function(en){
-    en.forEach(function(e){ if (e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
+    respondio = true;
+    en.forEach(function(e){
+      if (e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); }
+    });
   }, { rootMargin:"0px 0px -12% 0px", threshold:.06 });
+
+  // A partir de aquí el CSS puede ocultar: hay quien lo va a volver a mostrar.
+  document.documentElement.classList.add("js-rv");
   els.forEach(function(e){ io.observe(e); });
+
+  // El observador siempre entrega una primera lectura. Si no llega, está roto:
+  // se descarta la animación y se muestra la página completa.
+  setTimeout(function(){
+    if (!respondio){ io.disconnect(); document.documentElement.classList.remove("js-rv"); mostrarTodo(); }
+  }, 1200);
 })();
 
 /* ============ GLOBOS TERRÁQUEOS ============
