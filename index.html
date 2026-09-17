@@ -1026,15 +1026,22 @@ function pintarPlanes(){
   window.addEventListener("resize", pedir);
   revisar();
 
-  // Último seguro: si nada llegó a revelarse, se descarta la animación y se
-  // muestra todo. El contenido nunca depende de que el efecto funcione.
+  // Repasos tempranos: las fuentes y las imágenes cambian la altura al cargar.
+  [400, 1200, 2400].forEach(function(t){ setTimeout(revisar, t); });
+
+  // Último seguro: sólo si algo que debería verse sigue oculto. El contenido
+  // nunca depende de que la animación funcione.
   setTimeout(function(){
-    if (pendientes.length === els.length){
-      // sin transición de por medio: se muestra de inmediato, pase lo que pase
+    var alto = window.innerHeight || document.documentElement.clientHeight || 0;
+    var atascado = pendientes.some(function(e){
+      var r = e.getBoundingClientRect();
+      return r.top < alto && r.bottom > 0;
+    });
+    if (atascado){
       document.documentElement.classList.add("sin-anim");
       document.documentElement.classList.remove("js-rv");
     }
-  }, 2500);
+  }, 3000);
 })();
 
 /* ============ GLOBOS TERRÁQUEOS ============
@@ -1255,11 +1262,6 @@ function pintarPlanes(){
       new ResizeObserver(function(){ g.resize(); }).observe(canvas);
     }
 
-    // no dibujar lo que no se ve
-    if ("IntersectionObserver" in window){
-      new IntersectionObserver(function(en){ g.visible = en[0].isIntersecting; },
-        { rootMargin:"120px" }).observe(canvas);
-    }
 
     g.resize();
     globos.push(g);
@@ -1271,7 +1273,11 @@ function pintarPlanes(){
     for (var i = 0; i < globos.length; i++){
       var g = globos[i], V = g.V, cfg = g.cfg;
       if (!g.W) g.resize();
-      if (!g.visible || !g.W) continue;
+      if (!g.W) continue;
+      // No se dibuja lo que está fuera de pantalla, con holgura de 140 px.
+      var rc = g.canvas.getBoundingClientRect();
+      var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      if (rc.bottom < -140 || rc.top > vh + 140) continue;
 
       if (!g.drag){
         g.idle++;
