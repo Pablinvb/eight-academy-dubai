@@ -996,27 +996,40 @@ function pintarPlanes(){
 /* ============ REVELADO AL SCROLL ============ */
 (function reveal(){
   var els = [].slice.call(document.querySelectorAll(".rv"));
-  if (!els.length || !("IntersectionObserver" in window)) return;   // sin soporte, todo visible
+  if (!els.length) return;
 
-  function mostrarTodo(){ els.forEach(function(e){ e.classList.add("in"); }); }
+  // Se mide la posición directamente en cada scroll. IntersectionObserver sería
+  // más elegante, pero hay entornos donde existe y nunca reporta intersección:
+  // ahí la página entera se quedaba invisible. Esto no puede fallar así.
+  var pendientes = els.slice(), pedido = false;
 
-  var respondio = false;
-  var io = new IntersectionObserver(function(en){
-    respondio = true;
-    en.forEach(function(e){
-      if (e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); }
-    });
-  }, { rootMargin:"0px 0px -12% 0px", threshold:.06 });
+  function revisar(){
+    pedido = false;
+    var alto = window.innerHeight || document.documentElement.clientHeight || 0;
+    for (var i = pendientes.length - 1; i >= 0; i--){
+      var r = pendientes[i].getBoundingClientRect();
+      if (r.top < alto * 0.88 && r.bottom > 0){
+        pendientes[i].classList.add("in");
+        pendientes.splice(i, 1);
+      }
+    }
+    if (!pendientes.length){
+      window.removeEventListener("scroll", pedir);
+      window.removeEventListener("resize", pedir);
+    }
+  }
+  function pedir(){ if (!pedido){ pedido = true; requestAnimationFrame(revisar); } }
 
-  // A partir de aquí el CSS puede ocultar: hay quien lo va a volver a mostrar.
   document.documentElement.classList.add("js-rv");
-  els.forEach(function(e){ io.observe(e); });
+  window.addEventListener("scroll", pedir, { passive:true });
+  window.addEventListener("resize", pedir);
+  revisar();
 
-  // El observador siempre entrega una primera lectura. Si no llega, está roto:
-  // se descarta la animación y se muestra la página completa.
+  // Último seguro: si nada llegó a revelarse, se descarta la animación y se
+  // muestra todo. El contenido nunca depende de que el efecto funcione.
   setTimeout(function(){
-    if (!respondio){ io.disconnect(); document.documentElement.classList.remove("js-rv"); mostrarTodo(); }
-  }, 1200);
+    if (pendientes.length === els.length) document.documentElement.classList.remove("js-rv");
+  }, 2500);
 })();
 
 /* ============ GLOBOS TERRÁQUEOS ============
